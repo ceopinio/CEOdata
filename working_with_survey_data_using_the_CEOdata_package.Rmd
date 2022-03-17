@@ -1,0 +1,191 @@
+---
+title: Working with survey data using the CEOdata package
+author: Xavier Fernández-i-Marín
+date: "`r format(Sys.time(), '%d/%m/%Y')` - Version `r packageVersion('CEOdata')`"
+classoption: a4paper,justified
+output:
+  rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Working with survey data using the CEOdata package}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+library(CEOdata)
+```
+
+When working with survey data there are several issues / strategies to clean and
+prepare the data that are useful and worth being incorporated to the routines
+and workflow. This vignette uses the `CEOdata` package to present several
+examples.
+
+It uses primarily the data retrieved by default using the `CEOdata()` function
+in its default form, which retrieves the compiled "Barometers" from 2014 onwards.
+
+
+```{r message = FALSE}
+library(CEOdata)
+d <- CEOdata()
+```
+
+# Incorporate Tables and Figures
+
+Once you have retrieved the data of the surveys, it is easy to accommodate them
+to your regular workflow. For instance, to get the overall number of males and
+females surveyed:
+
+```{r, message = FALSE, warning = FALSE}
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+```
+
+
+```{r}
+d |>
+  count(SEXE)
+```
+
+
+Or to trace the proportion of females surveyed over time, across barometers:
+
+```{r prop-females, fig.width = 8, fig.height = 4, fig.cap = 'Proportion of females in the different Barometers.'}
+d |>
+  group_by(BOP_NUM) |>
+  summarize(propFemales = length(which(SEXE == "Dona")) / n()) |>
+  ggplot(aes(x = BOP_NUM, y = propFemales, group = 1)) +
+  geom_point() +
+  geom_line() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)) +
+  expand_limits(y = c(0, 1))
+```
+
+
+# Topics (Tags)
+
+Alternatively, the metadata can also be explored using the different topics
+(tags, called "Descriptors") covered as reported by the CEO.
+
+```{r tags, fig.width = 6, fig.height = 6, fig.cap = 'Prevalence of topics covered.'}
+tags <- CEOmeta() |>
+  separate_rows(Descriptors, sep = ";") |>
+  mutate(tag = factor(stringr::str_trim(Descriptors))) |>
+  select(REO, tag)
+
+tags |>
+  group_by(tag) |>
+  count() |>
+  filter(n > 5) |>
+  ggplot(aes(x = n, y = reorder(tag, n))) +
+    geom_point() +
+    ylab("Topic")
+```
+
+# Fieldwork
+
+The metadata also provides the option of examining the time periods where there
+has been fieldwork in quantitative studies, since 2018. In addition, we can
+distinguish between studies that provide microdata and surveys that don't.
+
+```{r fieldwork, fig.width = 8, fig.height = 10, fig.cap = 'Fieldwork periods.'}
+CEOmeta() |>
+  filter(`Dia inici treball de camp` > "2018-01-01") |>
+  ggplot(aes(xmin = `Dia inici treball de camp`,
+             xmax = `Dia final treball de camp`,
+             y = reorder(REO, `Dia final treball de camp`),
+             color = microdata_available)) +
+  geom_linerange() +
+  xlab("Date") + ylab("Surveys with fieldwork") +
+  theme(axis.ticks.y = element_blank(), axis.text.y = element_blank())
+```
+
+
+# Arrange and store
+
+Once a dataset has been retrieved from the CEO servers, it is important to clean
+it and arrange it to one's individual preferences, and store the result in an R
+object.
+
+The following example, for instance, process several variables of the survey,
+picks them and stores the resulting object in a workspace (RData) format.
+
+```{r}
+survey.data <- d |>
+  mutate(Female = ifelse(SEXE == "Dona", 1, 0),
+         Age = EDAT,
+         # Pass NA correctly
+         Income = ifelse(INGRESSOS %in% c("No ho sap", "No contesta"), 
+                         NA,
+                         INGRESSOS),
+         Date = Data,
+         # Reorganize factor labels
+         `Place of birth` = factor(case_when(
+            LLOC_NAIX == "Catalunya" ~ "Catalonia",
+            LLOC_NAIX %in% c("No ho sap", "No contesta") ~ as.character(NA),
+            TRUE ~ "Outside Catalonia")),
+         # Convert into numerical (integer)
+         `Interest in politics` = case_when(
+            INTERES_POL == "Gens" ~ 0L,
+            INTERES_POL == "Poc" ~ 1L,
+            INTERES_POL == "Bastant" ~ 2L,
+            INTERES_POL == "Molt" ~ 3L,
+            TRUE ~ as.integer(NA)),
+         # Convert into numeric (double) and properly address missing values
+         `Satisfaction with democracy` = ifelse(
+            SATIS_DEMOCRACIA %in% c("No ho sap", "No contesta"),
+            NA,
+            as.numeric(SATIS_DEMOCRACIA))) |>
+  # Center income to the median
+  mutate(Income = Income - median(Income, na.rm = TRUE)) |>
+  # Pick only specific variables
+  select(Date, Female, Age, Income,
+         `Place of birth`, `Interest in politics`, 
+         `Satisfaction with democracy`)
+
+
+```
+
+Finally, this can be stored for further analysis (hence, without the need to
+download and arrange the data again) in an R's native format:
+
+```{r eval = FALSE}
+save(survey.data, file = "my_cleaned_dataset.RData")
+```
+
+
+
+# Descriptive summary
+
+There are several packages that construct convenient tables with the descriptive summary of
+a dataset. For example, using the `vtable` package to produce a table with descriptive statistics.
+
+```{r, eval = FALSE, echo = TRUE}
+library(vtable)
+st(survey.data)
+```
+```{r, eval = TRUE, echo = FALSE}
+vtable::st(survey.data, out = "kable")
+```
+
+Or the `compareGroups` that allows to flexibly produce tables that compare
+descriptive statistics for different groups of individuals.
+
+```{r}
+library(compareGroups)
+createTable(compareGroups(Female ~ . -Date, data = survey.data))
+```
+
+
+
+
+
+# Development and acknowledgement
+
+The development of `CEOdata` (track changes, propose improvements, report bugs) can be followed at [github](https://github.com/ceopinio/CEOdata/).
+
+
+If using the data and the package, please cite and acknowledge properly the CEO and the package, respectively.
+
+<!-- # References -->
+
+
