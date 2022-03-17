@@ -1,4 +1,4 @@
-# CEOdata <img src='man/figures/logo.png' align="right" height="139" />
+# CEOdata <img src='logo.png' align="right" height="139" />
 
 Easy and convenient access to the datasets / microdata of the ["Centre d'Estudis d'Opinió"](https://ceo.gencat.cat/ca/inici/), the Catalan institution for polling and public opinion. The package uses the data stored in the servers of the CEO and returns it in a tidy format (tibble).
 
