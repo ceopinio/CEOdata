@@ -97,11 +97,12 @@ CEOdata <- function(kind = "barometer",
     # Arrange the barometer to process
     # Arrange factors
     if (!raw) { # Transform SPSS labels into proper R factors
-      is_haven_labelled <- function(x) ifelse(length(which(class(x) %in%
-                                                           "haven_labelled")) > 0,
-                                              TRUE, FALSE)
+      is_haven_labelled <- function(x) {
+        ifelse(length(which(class(x) %in% "haven_labelled")) > 0,
+               TRUE, FALSE)
+      }
       d <- d |>
-        dplyr::mutate_if(is_haven_labelled, haven::as_factor, levels = "labels")
+        dplyr::mutate_if(is_haven_labelled, haven::as_factor, levels = "default")
     }
     # Add extra variables (date, ...)
     if (extra_variables) {
