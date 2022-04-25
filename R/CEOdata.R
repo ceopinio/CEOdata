@@ -138,12 +138,18 @@ CEOdata <- function(kind = "barometer",
       if (length(reo) == 1) {
         url.reo <- CEOmetadata()$`Enllac matriu de dades`[CEOmetadata()$REO == reo]
         if (!is.na(url.reo)) {
-          d <- haven::read_spss(url.reo)
+          try({d <- haven::read_spss(url.reo)}, silent = TRUE)
+          if (!exists(quote(d))) {
+            message("A problem downloading the specific barometer file has occurred. The server may be temporarily down, or the file name has changed. Please try again later or open an issue at https://github.com/ceopinio/CEOdata indicating 'Problem with barometer'")
+            return(NULL)
+          }
         } else {
           message(paste0("There is no dataset available for REO ", reo))
+          return(NULL)
         }
       } else {
         message("'reo' must pass only a single REO.")
+        return(NULL)
       }
     } else {
       stop("'reo' must be a character vector.")
