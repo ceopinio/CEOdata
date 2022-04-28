@@ -44,7 +44,7 @@ CEOdata <- function(kind = "barometer",
     url.phone.barometer <- "https://ceo.gencat.cat/web/.content/20_barometre/Matrius_BOP/2013_Microdades_anonimitzades_fusio_cine_telf.zip"
     file.phone.barometer.rar <- "2013_Microdades_anonimitzades_fusio_cine_telf.zip"
     file.phone.barometer <- "Microdades anonimitzades fusio cine telf.sav"
-    url.presential.barometer <- "https://ceo.gencat.cat/web/.content/20_barometre/Matrius_BOP/Microdades_Des20.zip.zip"
+    url.presential.barometer <- "https://ceo.gencat.cat/web/.content/20_barometre/Matrius_BOP/Microdades_barometre.zip"
     file.presential.barometer <- "Microdades anonimitzada fusio presencial.sav"
     # Process barometer merged from 2014
     if (kind == "barometer") {
