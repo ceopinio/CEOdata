@@ -114,9 +114,9 @@ survey.data <- d |>
   mutate(Female = ifelse(SEXE == "Dona", 1, 0),
          Age = EDAT,
          # Pass NA correctly
-         Income = ifelse(INGRESSOS %in% c("No ho sap", "No contesta"), 
+         Income = ifelse(INGRESSOS_1_15 %in% c("No ho sap", "No contesta"), 
                          NA,
-                         INGRESSOS),
+                         INGRESSOS_1_15),
          Date = Data,
          # Reorganize factor labels
          `Place of birth` = factor(case_when(

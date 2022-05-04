@@ -1,6 +1,6 @@
 Package: CEOdata
 Title: Datasets of the CEO (Centre d'Estudis d'Opinio) for Opinion Polls in Catalonia
-Version: 1.0.4
+Version: 1.1.0
 Authors@R: 
     person("Xavier", "Fernández-i-Marín", , "xavier.fim@gmail.com", role = c("aut", "cre"),
            comment = c(ORCID = "0000-0002-9522-8870"))
@@ -25,6 +25,8 @@ Suggests:
   vtable,
   compareGroups
 License: GPL-3
+URL: https://ceo.gencat.cat/ca/inici/, https://github.com/ceopinio/CEOdata/
+BugReports: https://github.com/ceopinio/CEOdata/issues/
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.1.2
