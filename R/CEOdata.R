@@ -138,8 +138,35 @@ CEOdata <- function(kind = "barometer",
       if (length(reo) == 1) {
         url.reo <- CEOmetadata()$`Enllac matriu de dades`[CEOmetadata()$REO == reo]
         if (!is.na(url.reo)) {
-          try({d <- haven::read_spss(url.reo)}, silent = TRUE)
-          if (!exists(quote(d))) {
+          tmp <- tempfile()
+          try({download.value <- download.file(url.reo, tmp)}, silent = TRUE)
+          if (exists(quote(download.value))) {
+            if (download.value == 0) { # success downloading the file
+              files.within <- unzip(tmp, list = TRUE)
+              if (dim(files.within)[1] == 1) {
+                if (!stringr::str_detect(files.within$Name, "\\.sav$")) {
+                  warning("This zip file does not contain a .sav file")
+                  return(NULL)
+                } else {
+                  file <- unzip(tmp, files.within$Name)
+                  message("Converting the original data into R. This may take a while.")
+                  try({d <- haven::read_spss(file)}, silent = TRUE)
+                  if (!exists(quote(d))) {
+                    warning("The .sav file can't be processed.")
+                    return(NULL)
+                  } else {
+                    return(d)
+                  }
+                  if (file.exists(file)) {
+                    unlink(file)
+                  }
+                }
+              } else {
+                warning("The zip file does not contain one, and only one, single file")
+                return(NULL)
+              }
+            }
+          } else {
             message("A problem downloading the specific barometer file has occurred. The server may be temporarily down, or the file name has changed. Please try again later or open an issue at https://github.com/ceopinio/CEOdata indicating 'Problem with barometer'")
             return(NULL)
           }
