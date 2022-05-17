@@ -15,5 +15,5 @@ CEOdataStartupMessage <- function()
     msg[1] <- paste("Package 'CEOdata' version", utils::packageVersion("CEOdata"))
   packageStartupMessage(msg)      
   invisible()
-  options(encoding = "UTF-8")
+#  options(encoding = "UTF-8")
 }
