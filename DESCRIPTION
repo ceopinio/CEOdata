@@ -1,13 +1,13 @@
 Package: CEOdata
 Title: Datasets of the CEO (Centre d'Estudis d'Opinio) for Opinion Polls in Catalonia
-Version: 1.1.1
+Version: 1.2.0.1
 Authors@R: 
     person("Xavier", "Fernández-i-Marín", , "xavier.fim@gmail.com", role = c("aut", "cre"),
            comment = c(ORCID = "0000-0002-9522-8870"))
-Description: Easy and convenient access to the datasets / microdata of the
-  "Centre d'Estudis d'Opinió", the Catalan institution for polling and public
-  opinion.  The package uses the data stored in the servers of the CEO and returns
-  it in a tidy format (tibble).
+Description: Easy and convenient access to the datasets of the
+  "Centre d'Estudis d'Opinio", the Catalan institution for polling and public
+  opinion. The package uses the data stored in the servers of the CEO and returns
+  it in a tidy format.
 Depends:
   R (>= 4.1.0),
   haven,
@@ -29,5 +29,5 @@ URL: https://ceo.gencat.cat/ca/inici/, https://github.com/ceopinio/CEOdata/
 BugReports: https://github.com/ceopinio/CEOdata/issues/
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
-RoxygenNote: 7.1.2
+RoxygenNote: 7.2.0
 VignetteBuilder: knitr, R.rsp
