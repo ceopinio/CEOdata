@@ -49,7 +49,7 @@ It works either by specifying the kind of merged barometer (using the
 }
 \examples{
 \dontrun{
-Get the merged barometer from 2014, by default (assume kind = "barometer").
+# Get the merged barometer from 2014, by default (assume kind = "barometer").
 d <- CEOdata()
 
 # Get the number of individuals surveyed and the number of variables recorded.
@@ -58,7 +58,7 @@ dim(d)
 # Get the identifiers of the different Barometers retrieved
 unique(d$BOP_NUM)
 
-Get a specific study
+# Get a specific study
 d746 <- CEOdata(reo = "746")
 }
 }

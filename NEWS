@@ -1,3 +1,17 @@
+Version 1.2.0.1
+------------------------------
+
+Similar to previous version but solving a minor issue with a warning. But to
+mark a milestone a new minor version number is added.
+
+
+Version 1.1.1
+------------------------------
+
+Identical to 1.1.0, but needed to resubmit with a different version number due
+to a URL down in the DESCRIPTION.
+
+
 Version 1.1.0
 ------------------------------
 

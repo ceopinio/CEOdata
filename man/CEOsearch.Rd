@@ -42,8 +42,7 @@ CEOsearch(d, keyword = "edat")
 # and translate the results to English.
 CEOsearch(d, keyword = "edat", translate = TRUE)
 
-# now for the combination of 
-"valoracio" OR "covid" OR "govern".
+# now for the combination of "valoracio" OR "covid" OR "govern".
 CEOsearch(d, keyword = c("valoració", "covid",  "govern"))
 }
 }
