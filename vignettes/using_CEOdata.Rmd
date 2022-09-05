@@ -236,7 +236,7 @@ In the following example, we restrict the variables to those that contain "edat"
 CEOsearch(d, keyword = "edat")
 ```
 
-Finally, an English translation of the variable labels/values is provided if the argument `translate` is set to `TRUE`.
+Finally, an English translation of the variable labels/values is provided if the argument `translate` is set to `TRUE`, by opening a browser tab with the translations.
 
 ```{r}
 CEOsearch(d, keyword = "edat", translate = TRUE)
