@@ -7,6 +7,7 @@ To install or update, run:
 ```
 install.packages("CEOdata", dependencies=TRUE)
 ```
+_Temporarily, in order to ensure that you can get individual REOs and the metadata, please, ensure manually that the "curl" package is also installed._
 
 To access the package vignettes, please use:
 ```
