@@ -8,12 +8,12 @@ obs.barometer <- as.integer(dims.barometer[1])
 vars.barometer <- as.integer(dims.barometer[2])
 
 test_that("Observations match the merged barometer", {
-            correct.size <- 35838L # As of 220502
+            correct.size <- 39838L # As of 230201
             expect_identical(correct.size, obs.barometer)
 })
 
 test_that("Variables match the merged barometer", {
-            correct.size <- 896L # As of 200502
+            correct.size <- 1091L # As of 230201
             expect_identical(correct.size, vars.barometer)
 })
 
