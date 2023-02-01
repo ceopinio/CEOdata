@@ -37,6 +37,12 @@ CEOdata <- function(kind = "barometer",
                     raw = FALSE,
                     extra_variables = TRUE,
                     date_start = NA, date_end = NA) {
+
+  # Function used later to process SPSS labels into factors
+  is_haven_labelled <- function(x) {
+    ifelse(length(which(class(x) %in% "haven_labelled")) > 0,
+           TRUE, FALSE)
+  }
   if (is.na(reo)) {
     #
     # Define URLs
@@ -97,10 +103,6 @@ CEOdata <- function(kind = "barometer",
     # Arrange the barometer to process
     # Arrange factors
     if (!raw) { # Transform SPSS labels into proper R factors
-      is_haven_labelled <- function(x) {
-        ifelse(length(which(class(x) %in% "haven_labelled")) > 0,
-               TRUE, FALSE)
-      }
       d <- d |>
         dplyr::mutate_if(is_haven_labelled, haven::as_factor, levels = "default")
     }
@@ -155,16 +157,11 @@ CEOdata <- function(kind = "barometer",
                     warning("The .sav file can't be processed.")
                     return(NULL)
                   } else {
-                    return(d)
-                  }
-                  # Arrange factors
-                  if (!raw) { # Transform SPSS labels into proper R factors
-                    is_haven_labelled <- function(x) {
-                      ifelse(length(which(class(x) %in% "haven_labelled")) > 0,
-                             TRUE, FALSE)
+                    # Arrange factors
+                    if (!raw) { # Transform SPSS labels into proper R factors
+                      d <- d |>
+                        dplyr::mutate_if(is_haven_labelled, haven::as_factor, levels = "default")
                     }
-                    d <- d |>
-                      dplyr::mutate_if(is_haven_labelled, haven::as_factor, levels = "default")
                   }
                   if (file.exists(file)) {
                     unlink(file)
