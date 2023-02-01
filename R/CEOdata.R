@@ -157,6 +157,15 @@ CEOdata <- function(kind = "barometer",
                   } else {
                     return(d)
                   }
+                  # Arrange factors
+                  if (!raw) { # Transform SPSS labels into proper R factors
+                    is_haven_labelled <- function(x) {
+                      ifelse(length(which(class(x) %in% "haven_labelled")) > 0,
+                             TRUE, FALSE)
+                    }
+                    d <- d |>
+                      dplyr::mutate_if(is_haven_labelled, haven::as_factor, levels = "default")
+                  }
                   if (file.exists(file)) {
                     unlink(file)
                   }
