@@ -1,3 +1,9 @@
+Version 1.3
+------------------------------
+
+Singular REOs now pass with factors. In addition to that, new tests to ensure it.
+
+
 Version 1.2.0.1
 ------------------------------
 
