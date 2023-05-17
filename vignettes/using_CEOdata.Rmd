@@ -69,6 +69,17 @@ names(d)[1:50]
 ```
 
 
+But default `CEOdata()` transforms the gathered data into pure-R format
+(labelled SPSS variables are converted into factors). If you want to use
+`haven_labelled` variables as provided by the raw SPSS files available, you can
+use the argument `raw = TRUE`.
+
+```{r, eval = FALSE}
+d.raw <- CEOdata(raw = FALSE)
+```
+
+
+
 ## Specific studies or time frames
 
 `CEOdata()` allows you to select specific Barometers, by providing their internal register in the `reo` argument. 
