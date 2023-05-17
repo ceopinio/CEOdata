@@ -33,10 +33,25 @@ functions with a separate purpose:
 The most comprehensive kind of data on Catalan public opinion is the
 "Barometer", that can be retrieved by default by the main function `CEOdata()`.
 
-```{r message = FALSE}
+```{r message = FALSE, echo = TRUE, eval = FALSE}
 library(CEOdata)
 d <- CEOdata()
 ```
+
+```{r message = FALSE, echo = FALSE, eval = TRUE}
+library(knitr)
+library(CEOdata)
+d <- CEOdata()
+# If there is an internet problem, do not run the remaining of the chunks.
+if (is.null(d)) {
+  print("here")
+  knitr::opts_chunk$set(eval = FALSE)
+} else {
+  knitr::opts_chunk$set(eval = TRUE)
+}
+```
+
+
 
 This provides a cleaned and merged version of all the available Barometers,
 since 2017, providing easy access to the following number of responses and variables:
