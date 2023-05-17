@@ -23,10 +23,24 @@ It uses primarily the data retrieved by default using the `CEOdata()` function
 in its default form, which retrieves the compiled "Barometers" from 2014 onwards.
 
 
-```{r message = FALSE}
+```{r message = FALSE, echo = TRUE, eval = FALSE}
 library(CEOdata)
 d <- CEOdata()
 ```
+
+```{r message = FALSE, echo = FALSE, eval = TRUE}
+library(knitr)
+library(CEOdata)
+d <- CEOdata()
+# If there is an internet problem, do not run the remaining of the chunks.
+if (is.null(d)) {
+  print("here")
+  knitr::opts_chunk$set(eval = FALSE)
+} else {
+  knitr::opts_chunk$set(eval = TRUE)
+}
+```
+
 
 # Incorporate Tables and Figures
 
@@ -164,15 +178,28 @@ library(vtable)
 st(survey.data)
 ```
 ```{r, eval = TRUE, echo = FALSE}
-vtable::st(survey.data, out = "kable")
+if (exists("survey.data")) {
+  if (!is.null(survey.data)) {
+    vtable::st(survey.data, out = "kable")
+  }
+}
 ```
 
 Or the `compareGroups` that allows to flexibly produce tables that compare
 descriptive statistics for different groups of individuals.
 
-```{r}
+```{r, eval = FALSE, echo = TRUE}
 library(compareGroups)
 createTable(compareGroups(Female ~ . -Date, data = survey.data))
+```
+
+```{r, eval = TRUE, echo = FALSE}
+if (exists("survey.data")) {
+  if (!is.null(survey.data)) {
+    library(compareGroups)
+    createTable(compareGroups(Female ~ . -Date, data = survey.data))
+  }
+}
 ```
 
 
