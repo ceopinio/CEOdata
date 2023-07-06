@@ -51,7 +51,7 @@ CEOdata <- function(kind = "barometer",
     file.phone.barometer.rar <- "2013_Microdades_anonimitzades_fusio_cine_telf.zip"
     file.phone.barometer <- "Microdades anonimitzades fusio cine telf.sav"
     url.presential.barometer <- "https://ceo.gencat.cat/web/.content/20_barometre/Matrius_BOP/Microdades_barometre.zip"
-    file.presential.barometer <- "Microdades anonimitzada fusio presencial.sav"
+    file.presential.barometer <- "Microdades anonimitzades fusio presencial.sav"
     # Process barometer merged from 2014
     if (kind == "barometer") {
       message("Downloading the barometer.")
