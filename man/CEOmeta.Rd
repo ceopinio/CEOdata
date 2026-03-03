@@ -16,48 +16,55 @@ CEOmeta(
 )
 }
 \arguments{
-\item{reo}{Character vector of length one that allows to get the metadata only of a specific REO (Registre d'Estudis d'Opinio, the internal register ID used by the CEO) to download. When not NULL it has precedence with the search, date_start and date_end arguments.}
+\item{reo}{Character vector with one or more REO identifiers. When not NULL it
+has precedence over \code{search}, \code{date_start}, and \code{date_end}.}
 
-\item{search}{Character vector with keywords to look for within several columns of the CEO metadata (title, summary, objectives and tags -descriptors-). Each element of the vector is strictly evaluated (all words are considered to be found in the format they appear, like in "AND"), while by using several elements in the vector the search works like an "OR" clause. Lower or upper cases are not considered.}
+\item{search}{Character vector with keywords to look for in metadata text
+fields. Each element is interpreted as one search expression; multiple
+elements are combined with OR. Matching is case-insensitive.}
 
-\item{date_start}{Character vector with a starting date ("YYYY-MM-DD") for the data.}
+\item{date_start}{Optional start date (\code{"YYYY-MM-DD"} or \code{Date}) for
+\verb{Data d'alta al REO}.}
 
-\item{date_end}{Character vector with an end date ("YYYY-MM-DD") for the data.}
+\item{date_end}{Optional end date (\code{"YYYY-MM-DD"} or \code{Date}) for
+\verb{Data d'alta al REO}.}
 
-\item{browse}{Logical value. When turned to TRUE, the browser opens the URLs of the required surveys. Only a maximum of 10 entries are opened.}
+\item{browse}{Logical value. If TRUE, open matching metadata URLs in the
+browser (up to 10 entries unless \code{browse_force = TRUE}).}
 
-\item{browse_translate}{When opening the relevant entries in the browser (browse must be TRUE), use automatic translation to the language specified using Google Translate ('oc' for Occitan/Aranese, 'de' to German, 'en' to English, 'eu' to Basque, 'gl' for Galician or 'sp' to Spanish).}
+\item{browse_translate}{Optional language code when \code{browse = TRUE}:
+\code{'oc'} (Apertium), or Google-Translate target among
+\code{'de'}, \code{'en'}, \code{'eu'}, \code{'gl'}, \code{'sp'}/\code{'es'}.}
 
-\item{browse_force}{Logical value. When TRUE it overcomes the limitation of only opening a maximum of 10 URLs. Use it with caution.}
+\item{browse_force}{Logical value. If TRUE, bypasses the safety limit of
+opening at most 10 URLs.}
 }
 \value{
-A tibble with the metadata of the surveys produced by the CEO.
+A tibble with the metadata of surveys produced by the CEO.
 }
 \description{
-Easy and convenient access to the metadata of the "Centre
-d'Estudis d'Opinio", the Catalan institution for polling and public opinion.
-It allows to search for specific terms to obtain the details of the datasets available
+Easy and convenient access to the metadata of the "Centre d'Estudis d'Opinio",
+the Catalan institution for polling and public opinion.
 }
 \examples{
 \dontrun{
-# Retrieve the metadata of the surveys ever produced by the CEO:
+# Retrieve metadata of all surveys:
 meta <- CEOmeta()
 dim(meta)
 
-# Search for specific terms in any of the metadata fields
-# in this case, "internet".
+# Search for specific terms:
 CEOmeta(search = "internet")
 
-# now for the combination of "Medi" AND "Ambient"
+# "Medi" AND "Ambient"
 CEOmeta(search = "Medi ambient")
 
-# now for the combination of ("Medi" AND "Ambient") OR "Municipi"
+# ("Medi" AND "Ambient") OR "Municipi"
 CEOmeta(search = c("Medi ambient", "Municipi"))
 
-# Search for all registers starting in 2020
+# Search for entries starting in 2020
 CEOmeta(date_start = "2020-01-01")
 
-# Get the entry for a specific study (REO) and open its description in a browser
+# Get a specific REO and open its description in browser
 CEOmeta(reo = "746", browse = TRUE)
 }
 }

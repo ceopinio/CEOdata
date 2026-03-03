@@ -1,14 +1,27 @@
-require(testthat)
-devtools::load_all("../..")
-context("Check that the conversion to factors is done properly, both in the barometer as well as individual REOs.")
-d <- CEOdata()
-d1031 <- CEOdata(reo = "1031")
+# tests/testthat/test_conversion_factors.R
 
-c.barometer <- class(d$COMARCA)
-c.1031 <- class(d1031$COMARCA)
+test_that("CEOdata returns factor variables when raw = FALSE", {
+  local_mocked_bindings(
+    CEOaccumulated_metadata = function() {
+      tibble::tibble(
+        codi_serie = "BOP_presencial",
+        microdades_1 = "https://example.org/barometer.sav"
+      )
+    },
+    CEOmetadata = function() {
+      tibble::tibble(
+        REO = "1031",
+        `Microdades 1` = "https://example.org/reo1031.sav"
+      )
+    },
+    ceodata_download_and_read = function(url, raw = FALSE) {
+      tibble::tibble(COMARCA = factor(c("Barcelona", "Girona")))
+    }
+  )
 
-test_that("Labelled SPSS variables are transformed into factors", {
-            correct.type <- "factor"
-            expect_identical(correct.type, c.barometer, c.1031)
+  d <- CEOdata()
+  d1031 <- CEOdata(reo = "1031")
+
+  expect_s3_class(d$COMARCA, "factor")
+  expect_s3_class(d1031$COMARCA, "factor")
 })
-

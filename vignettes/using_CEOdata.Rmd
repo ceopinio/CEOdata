@@ -12,19 +12,111 @@ vignette: >
 ---
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 library(CEOdata)
+library(tibble)
+library(dplyr)
+library(haven)
+library(stringr)
+
+example_path <- function(filename) {
+  system.file("extdata", filename, package = "CEOdata", mustWork = TRUE)
+}
+
+acc_meta <- readRDS(example_path("accumulated_meta_example.rds"))
+meta <- readRDS(example_path("REO_meta_example.rds"))
+
+to_factor_tibble <- function(path) {
+  haven::read_sav(path) |>
+    tibble::as_tibble() |>
+    dplyr::mutate(
+      dplyr::across(
+        where(~ inherits(.x, "haven_labelled")),
+        haven::as_factor
+      )
+    )
+}
+
+to_raw_tibble <- function(path) {
+  haven::read_sav(path) |>
+    tibble::as_tibble()
+}
+
+d <- to_factor_tibble(example_path("BOP_presencial_example.sav"))
+d_raw <- to_raw_tibble(example_path("BOP_presencial_example.sav"))
+d1145 <- to_factor_tibble(example_path("d1145_example.sav"))
+d1145_raw <- to_raw_tibble(example_path("d1145_example.sav"))
+
+CEOaccumulated_meta <- function(series = NULL, active_only = FALSE) {
+  out <- acc_meta
+  if (!is.null(series)) {
+    out <- out |>
+      dplyr::filter(codi_serie %in% series)
+  }
+  if (isTRUE(active_only) && "estat" %in% names(out)) {
+    estat_chr <- tolower(as.character(out$estat))
+    out <- out[stringr::str_detect(estat_chr, "\\bactiva\\b") %in% TRUE, , drop = FALSE]
+  }
+  out
+}
+
+CEOmeta <- function(reo = NULL, search = NULL, date_start = NA, date_end = NA, ...) {
+  out <- meta
+  if (!is.null(reo)) {
+    out <- out |>
+      dplyr::filter(as.character(REO) %in% as.character(reo))
+  } else if (!is.null(search)) {
+    cols <- intersect(c("Titol enquesta", "Titol estudi", "Objectius", "Resum", "Descriptors"), names(out))
+    if (length(cols) > 0) {
+      pattern <- paste(search, collapse = "|")
+      out <- out |>
+        dplyr::mutate(dplyr::across(dplyr::all_of(cols), ~ tolower(as.character(.x)))) |>
+        dplyr::filter(
+          dplyr::if_any(
+            dplyr::all_of(cols),
+            ~ stringr::str_detect(.x, regex(pattern, ignore_case = TRUE))
+          )
+        )
+    }
+  }
+
+  start <- suppressWarnings(as.Date(date_start))
+  end <- suppressWarnings(as.Date(date_end))
+  if (!is.na(start) && "Data d'alta al REO" %in% names(out)) {
+    out <- out |>
+      dplyr::filter(`Data d'alta al REO` >= start)
+  }
+  if (!is.na(end) && "Data d'alta al REO" %in% names(out)) {
+    out <- out |>
+      dplyr::filter(`Data d'alta al REO` <= end)
+  }
+  out
+}
+
+CEOdata <- function(series = "BOP_presencial", reo = NA, raw = FALSE) {
+  if (!is.na(reo)) {
+    return(if (isTRUE(raw)) d1145_raw else d1145)
+  }
+  if (!identical(series, "BOP_presencial")) {
+    stop(
+      "Offline vignette example includes only series = 'BOP_presencial'.",
+      call. = FALSE
+    )
+  }
+  if (isTRUE(raw)) d_raw else d
+}
 ```
 
 # 1. Introduction
 
 `CEOdata` provides convenient access to the microdata (individual-level survey responses) produced by the Centre d'Estudis d'Opinió (CEO), the public opinion institute of the Government of Catalonia.
 
-The package retrieves data directly from the official open data platform of the Generalitat de Catalunya and returns them in a tidy format. This ensures that the datasets used in analysis correspond to the publicly available and up-to-date versions.
+This vignette is fully offline and uses the bundled small example datasets in the `data/` folder.
 
 The central entry point is the function
 
 - **`CEOdata()`**, which downloads and imports microdata into `R`.
 
 Depending on the arguments provided, `CEOdata()` can retrieve either:
+
 1. An **accumulated microdata series**, identified by a __codi_serie__ (e.g. "BOP_presencial"), or
 2. A **single study dataset**, identified by its __REO__ code (e.g. "1145").
 
@@ -49,16 +141,17 @@ In contrast to downloading a single study (via its __REO__ code), working with a
 - Pool observations to increase statistical power
 - Work with a harmonised questionnaire structure across waves
 
-Each series is identified by a `codi_serie`, which can be inspected using `CEOaccumulated_meta()`. These series are published in the Generalitat de Catalunya open data portal and updated when new waves are incorporated.
+Each series is identified by a `codi_serie`, which can be inspected using `CEOaccumulated_meta()`.
 
 ## 2.2. List series
 
 The available accumulated microdata series can be inspected using `CEOaccumulated_meta()`:
 ```{r echo=TRUE, message=FALSE, warning=FALSE}
-CEOaccumulated_meta()
+head(CEOaccumulated_meta())
 ```
 
 This function returns a tibble where each row corresponds to an accumulated series. The most relevant columns are:
+
 - **`codi_serie`**: identifier user to download the series.
 - **`titol_serie`**: descriptive title of the series.
 - **`mode_admin`**: mode of administration.
@@ -70,31 +163,33 @@ This function returns a tibble where each row corresponds to an accumulated seri
 To see only the identifiers:
 
 ```{r echo=TRUE, message=FALSE, warning=FALSE}
-unique(CEOaccumulated_meta()$codi_serie)
+head(unique(CEOaccumulated_meta()$codi_serie))
 ```
 
 You can also filter the metadata to inspect a specific series:
 
 ```{r echo=TRUE, message=FALSE, warning=FALSE}
-CEOaccumulated_meta(series = "BOP_presencial")
+head(CEOaccumulated_meta(series = "BOP_presencial"))
 ```
 
 
 ## 2.3. Load series
 
-Once a `codi_serie` has been identified, the corresponding dataset can be downloaded using `CEOdata()`. By default, `CEOdata()` loads the series "__BOP_presencial__", CEO's flagship survey.
+Once a `codi_serie` has been identified, the corresponding dataset can be loaded using `CEOdata()`. In this offline vignette, the available accumulated series example is "__BOP_presencial__".
 ```{r echo=TRUE, message=FALSE, warning=FALSE}
 d <- CEOdata()
+head(d)
 ```
 
 This is equivalent to explicitly specifying the series:
 ```{r echo=TRUE, message=FALSE, warning=FALSE}
 d <- CEOdata(series = "BOP_presencial")
+head(d)
 ```
 
-To load a different accumulated series:
+Attempting to load a different accumulated series in this offline vignette returns an informative error. This is available if the computer has internet connection:
 ```{r echo=TRUE, message=FALSE, warning=FALSE}
-d_longi <- CEOdata(series = "Longitudinal")
+try(CEOdata(series = "Longitudinal"))
 ```
 
 The returned object is a tibble where each row represents an individual respondent and columns correspond to survey variables. Accumulated series typically combine multiple survey waves that share a comparable questionnaire structure.
@@ -102,6 +197,7 @@ The returned object is a tibble where each row represents an individual responde
 By default, SPSS labelled variables are converted into standard R factors. To retain the original `haven_labelled` format:
 ```{r echo=TRUE, message=FALSE, warning=FALSE}
 d_raw <- CEOdata(series = "BOP_presencial", raw = TRUE)
+head(d_raw)
 ```
 
 
@@ -111,12 +207,14 @@ d_raw <- CEOdata(series = "BOP_presencial", raw = TRUE)
 
 All individual surveys from the Generalitat de Catalunya are identified by a **REO code** (__Registre d'Estudis d'Opinió__). Each REO corresponds to a specific survey wave conducted at a given time. 
 
-The available studies can be inspected using `CEOmeta()`:
+The available studies in the offline example can be inspected using `CEOmeta()`:
 ```{r echo=TRUE, message=FALSE, warning=FALSE}
-(meta <- CEOmeta())
+meta <- CEOmeta()
+head(meta)
 ```
 
 This function returns a tibble where each row corresponds to a study. Among the most relevant columns are:
+
 - **`REO`**: the study identifier.
 - **`Títol enquesta`**: descriptive title of the study.
 - **`Objectius`**: description of the survey goals and contents.
@@ -128,19 +226,22 @@ Internal surveys from the CEO have publicly available microdata, but there are o
 
 ```{r echo=TRUE, message=FALSE, warning=FALSE}
 available <- CEOmeta() |> dplyr::filter(microdata_available)
+head(available)
 ```
 
-The `search` arguments allows users to look for keywords across several descriptive fields (such as title, summary, objectives...). Seach words must be in catalan. 
+The `search` argument allows users to look for keywords across several descriptive fields (such as title, summary, objectives...). Search words should be in Catalan.
 
 ```{r echo=TRUE, message=FALSE, warning=FALSE}
-immigration_surveys <- CEOmeta(search = "immigració")
+specific_reo <- CEOmeta(reo = "1145")
+head(specific_reo)
 ```
 
 ## 3.2. Load studies
 
-Once you have identified the REO code of a study, you can download and imports its microdata using `CEOdata(reo = ...)`.
+Once you have identified the REO code of a study, you can load its microdata using `CEOdata(reo = ...)`.
 ```{r echo=TRUE, message=FALSE, warning=FALSE}
 d1145 <- CEOdata(reo = "1145")
+head(d1145)
 ```
 
 The returned object is a tibble where each row corresponds to an individual respondent and columns correspond to survey variables. If a REO has not available microdata, `CEOdata()` will return an informative error when retrieving the information.
@@ -148,6 +249,7 @@ The returned object is a tibble where each row corresponds to an individual resp
 As with accumulated series, by default the package converts SPSS-labelled variables into standard R factors. To keep the raw `haven_labelled` format:
 ```{r echo=TRUE, message=FALSE, warning=FALSE}
 d1145_raw <- CEOdata(reo = "1145", raw = TRUE)
+head(d1145_raw)
 ```
 
 # 4. Search for keywords in the labels
@@ -156,12 +258,12 @@ Once a dataset has been downloaded using `CEOdata()`, the function `CEOsearch()`
 
 You can search for keywords in the variable labels, for example, look for "trust" in the last retrieved dataset. Keywords must be typed in catalan language.
 ```{r echo=TRUE, message=FALSE, warning=FALSE}
-CEOsearch(d1145, keyword = "confiança")
+head(CEOsearch(d1145, keyword = "democràcia"))
 ```
 
 Sometimes, information might be on the value labels instead of the variables themselves. You can also search within response categories.
 ```{r echo=TRUE, message=FALSE, warning=FALSE}
-CEOsearch(d1145, keyword = "Salvador Illa", where = "values")
+head(CEOsearch(d1145, keyword = "Catalunya", where = "values"))
 ```
 
 # 5. Working with labelled data (raw vs factors)
@@ -172,7 +274,7 @@ By default, `CEOdata()`converts SPSS-labelled variables into standard R factors.
 
 # 6. Notes on reproducibility and data updates
 
-`CEOdata` retrieves datasets directly from the official open data platform of the Generalitat de Catalunya. This ensures that users always access the most recent publicly available version of the microdata. However, this has implications for reproducibility:
+In online use, `CEOdata` retrieves datasets directly from the official open data platform of the Generalitat de Catalunya. In this vignette, all examples are run offline with fixed local files. Online retrieval has implications for reproducibility:
 
 - Accumulated series may change over time as new survey waves are incorporated.
 - Metadata catalogues may be updated

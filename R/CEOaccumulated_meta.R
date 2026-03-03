@@ -2,10 +2,17 @@
 #'
 #' @keywords internal
 CEOaccumulated_metadata <- function() {
-  if (is.null(the$CEOaccumulated_metadata)) {
-    the$CEOaccumulated_metadata <- getCEOaccumulated_metadata()
+  # Cache entry is reused only when both object type and schema are valid.
+  expected_cols <- ceo_acc_expected_cols()
+  cache_env <- ceo_cache_env()
+
+  cached <- cache_env$CEOaccumulated_metadata
+  cache_invalid <- is.null(cached) || !ceo_acc_cache_valid(cached, expected_cols)
+
+  if (isTRUE(cache_invalid)) {
+    cache_env$CEOaccumulated_metadata <- getCEOaccumulated_metadata()
   }
-  the$CEOaccumulated_metadata
+  cache_env$CEOaccumulated_metadata
 }
 
 #' Download and prepare the metadata of accumulated microdata series (Dades Obertes)
@@ -37,60 +44,47 @@ getCEOaccumulated_metadata <- function() {
     return(NULL)
   }
 
-  # In this endpoint, jsonlite::fromJSON() already returns a data.frame
-  if (!is.data.frame(acc)) {
+  # The endpoint usually returns a data.frame. If the shape changes but is still
+  # list-like, attempt to coerce; otherwise abort gracefully.
+  d <- tryCatch(
+    tibble::as_tibble(acc),
+    error = function(e) NULL
+  )
+
+  if (is.null(d)) {
     message(
       paste0(
         "Unexpected response type from accumulated-series API. ",
-        "Expected a data.frame but got: ", paste(class(acc), collapse = ", ")
+        "Could not coerce response to a tibble. Received classes: ",
+        paste(class(acc), collapse = ", ")
       )
     )
     return(NULL)
   }
 
-  d <- tibble::as_tibble(acc)
+  # Continue with a warning when non-critical columns are missing, but fail
+  # early if the key identifier no longer exists.
+  expected <- ceo_acc_expected_cols()
+  ceo_warn_missing_cols(d, expected, "Accumulated metadata")
 
-  # Flatten nested url objects (microdades_1 and microdades_2 come as data.frames with column `url`)
-  if ("microdades_1" %in% names(d)) {
-    if (is.data.frame(d$microdades_1) && "url" %in% names(d$microdades_1)) {
-      d$microdades_1 <- d$microdades_1$url
-    } else {
-      d$microdades_1 <- as.character(d$microdades_1)
-    }
-  } else {
-    d$microdades_1 <- NA_character_
-  }
-
-  if ("microdades_2" %in% names(d)) {
-    if (is.data.frame(d$microdades_2) && "url" %in% names(d$microdades_2)) {
-      d$microdades_2 <- d$microdades_2$url
-    } else {
-      d$microdades_2 <- as.character(d$microdades_2)
-    }
-  } else {
-    d$microdades_2 <- NA_character_
-  }
-
-  # Helper: robust date conversion for character timestamps
-  to_date_safe <- function(x) {
-    if (is.null(x)) return(as.Date(NA))
-    if (all(is.na(x))) return(as.Date(x))
-
-    x_chr <- as.character(x)
-    x_chr <- stringr::str_sub(x_chr, 1L, 10L)  # keep YYYY-MM-DD
-    as.Date(x_chr, format = "%Y-%m-%d")
+  if (!("codi_serie" %in% names(d))) {
+    message(
+      "The accumulated metadata endpoint does not include 'codi_serie'. ",
+      "The schema may have changed."
+    )
+    return(NULL)
   }
 
   # Ensure stable schema (create missing columns as NA)
-  expected <- c(
-    "codi_serie", "titol_serie", "mode_admin",
-    "data_inici", "data_fi", "reo", "estat", "univers",
-    "microdades_1", "microdades_2"
-  )
+  d <- ceo_ensure_cols(d, expected)
 
-  for (nm in expected) {
-    if (!(nm %in% names(d))) d[[nm]] <- NA
-  }
+  # Normalize URL fields before generic character conversion.
+  d$microdades_1 <- ceo_extract_url_column(
+    d$microdades_1, n = nrow(d), field_name = "microdades_1"
+  )
+  d$microdades_2 <- ceo_extract_url_column(
+    d$microdades_2, n = nrow(d), field_name = "microdades_2"
+  )
 
   # Type normalization
   d <- d |>
@@ -103,9 +97,15 @@ getCEOaccumulated_metadata <- function() {
       univers      = as.character(univers),
       microdades_1 = as.character(microdades_1),
       microdades_2 = as.character(microdades_2),
-      data_inici   = to_date_safe(data_inici),
-      data_fi      = to_date_safe(data_fi)
-    ) |>
+      data_inici   = ceo_to_date_safe(data_inici, n = nrow(d)),
+      data_fi      = ceo_to_date_safe(data_fi, n = nrow(d))
+    )
+
+  ceo_assert_cols(
+    d, "codi_serie", "Accumulated metadata after normalization"
+  )
+
+  d <- d |>
     dplyr::filter(!is.na(codi_serie) & nzchar(codi_serie))
 
   d
@@ -137,6 +137,8 @@ CEOaccumulated_meta <- function(series = NULL, active_only = FALSE) {
     return(NULL)
   }
 
+  ceo_assert_cols(d, "codi_serie", "Accumulated metadata")
+
   if (!is.null(series)) {
     if (!is.character(series)) {
       stop("`series` must be a character vector.", call. = FALSE)
@@ -147,8 +149,15 @@ CEOaccumulated_meta <- function(series = NULL, active_only = FALSE) {
 
   if (isTRUE(active_only)) {
     # Best-effort: the portal seems to use strings like "Serie activa" / "Serie inactiva"
-    d <- d |>
-      dplyr::filter(stringr::str_detect(tolower(estat), "activa"))
+    if (!("estat" %in% names(d))) {
+      d$estat <- NA_character_
+    }
+    estat_chr <- tolower(as.character(d$estat))
+    d <- d[
+      stringr::str_detect(estat_chr, "\\bactiva\\b") %in% TRUE,
+      ,
+      drop = FALSE
+    ]
   }
 
   d
