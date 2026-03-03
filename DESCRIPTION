@@ -19,7 +19,8 @@ Imports:
   dplyr (>= 1.0.0),
   urltools,
   stringr,
-  jsonlite
+  jsonlite,
+  lubridate
 Suggests:
   knitr,
   ggplot2,

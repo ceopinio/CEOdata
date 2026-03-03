@@ -18,3 +18,21 @@ CEOdataStartupMessage <- function()
   invisible()
 #  options(encoding = "UTF-8")
 }
+
+# To avoid notes in R CMD Check
+if (getRversion() >= "2.15.1")  utils::globalVariables(
+  c(
+  "codi_serie", "estat", "titol_serie", "mode_admin", 
+  "reo", "univers", "microdades_1", "microdades_2", 
+  "data_inici", "data_fi",
+  "REO", ".", "Data d'alta al REO", 
+  "Variable", "Original.Variable",
+  "sid", "id", "position", "created_at", "created_meta",
+  "updated_at", "updated_meta", "meta",
+  "Metodologia enquesta", "Metode de recollida de dades", 
+  "Ambit territorial", "Dia inici treball de camp", 
+  "Dia final treball de camp", "Any d'entrada al REO", 
+  "Mostra estudis quantitatius", "Cost", 
+  "Enllac matriu de dades"
+  )
+)
