@@ -3,7 +3,7 @@
 \encoding{UTF-8}
 \name{read.ceo.json}
 \alias{read.ceo.json}
-\title{Internal function to be able to properly read the JSON from CEO}
+\title{Internal function to properly read the JSON from CEO}
 \usage{
 read.ceo.json(x)
 }
@@ -11,6 +11,6 @@ read.ceo.json(x)
 \item{x}{JSON data structure}
 }
 \description{
-Used to address the limitations of the JSON format provided
+Used to address limitations of the JSON format provided.
 }
 \keyword{internal}

@@ -1,34 +1,3 @@
-#' Import datasets / microdata from the Centre d'Estudis d'Opinio
-#'
-#' Easy and convenient access to datasets / microdata from the
-#' "Centre d'Estudis d'Opinio". The function can return either:
-#' (1) an accumulated microdata series (identified by `series`), or
-#' (2) a single study microdata dataset (identified by `reo`).
-#'
-#' Accumulated series are obtained from the Dades Obertes catalogue and are
-#' usually identified by `codi_serie` (e.g. `"BOP_presencial"`).
-#'
-#' @encoding UTF-8
-#' @param series Character scalar identifying the accumulated series to download.
-#'   Ignored when `reo` is provided.
-#' @param reo Single REO identifier of a study to download. Can be character,
-#'   numeric, or factor-like, and is normalized internally.
-#' @param raw Logical. If FALSE (default), converts SPSS labelled vectors into
-#'   factors. If TRUE, returns raw haven-labelled vectors.
-#' @export
-#' @return A tibble with individuals' responses to the requested dataset.
-#' @examples
-#' \dontrun{
-#' # Default: accumulated microdata series
-#' d <- CEOdata()
-#'
-#' # Load another accumulated series by code
-#' d_tel <- CEOdata(series = "BOP_telefonica")
-#'
-#' # Load a single study by REO
-#' d1145 <- CEOdata(reo = "1145")
-#' }
-
 # ---- Internal helpers used by CEOdata() --------------------------------------
 
 ceodata_norm_scalar <- function(x, arg_name) {
@@ -127,6 +96,36 @@ ceodata_extract_urls <- function(d, cols) {
   vals
 }
 
+#' Import datasets / microdata from the Centre d'Estudis d'Opinio
+#'
+#' Easy and convenient access to datasets / microdata from the
+#' "Centre d'Estudis d'Opinio". The function can return either:
+#' (1) an accumulated microdata series (identified by `series`), or
+#' (2) a single study microdata dataset (identified by `reo`).
+#'
+#' Accumulated series are obtained from the Dades Obertes catalogue and are
+#' usually identified by `codi_serie` (e.g. `"BOP_presencial"`).
+#'
+#' @encoding UTF-8
+#' @param series Character scalar identifying the accumulated series to download.
+#'   Ignored when `reo` is provided.
+#' @param reo Single REO identifier of a study to download. Can be character,
+#'   numeric, or factor-like, and is normalized internally.
+#' @param raw Logical. If FALSE (default), converts SPSS labelled vectors into
+#'   factors. If TRUE, returns raw haven-labelled vectors.
+#' @export
+#' @return A tibble with individuals' responses to the requested dataset.
+#' @examples
+#' \dontrun{
+#' # Default: accumulated microdata series
+#' d <- CEOdata()
+#'
+#' # Load another accumulated series by code
+#' d_tel <- CEOdata(series = "BOP_telefonica")
+#'
+#' # Load a single study by REO
+#' d1145 <- CEOdata(reo = "1145")
+#' }
 CEOdata <- function(series = "BOP_presencial",
                     reo = NA,
                     raw = FALSE) {
