@@ -1,127 +1,256 @@
-#' Import datasets / microdata from the Centre d'Estudis d'Opinió
+#' Import datasets / microdata from the Centre d'Estudis d'Opinio
 #'
-#' Easy and convenient access to the datasets / microdata of the "Centre
-#' d'Estudis d'Opinio", the Catalan institution for polling and public opinion.
-#' The package uses the data stored in the open data platform of "Generalitat de 
-#' Catalunya", the catalan government, and returns it in a tidy format (tibble). 
-#' The function can return either:
+#' Easy and convenient access to datasets / microdata from the
+#' "Centre d'Estudis d'Opinio". The function can return either:
 #' (1) an accumulated microdata series (identified by `series`), or
 #' (2) a single study microdata dataset (identified by `reo`).
 #'
 #' Accumulated series are obtained from the Dades Obertes catalogue and are
-#' referenced by `codi_serie` (e.g. "BOP_presencial").
+#' usually identified by `codi_serie` (e.g. `"BOP_presencial"`).
 #'
 #' @encoding UTF-8
-#' @param series Character scalar indicating the accumulated microdata series to download
-#'   (a `codi_serie` value returned by `CEOaccumulated_meta()`). Defaults to "BOP_presencial".
-#'   Ignored if `reo` is provided.
-#' @param reo Character scalar indicating the REO code of a single study to download.
-#'   Default is NA (meaning: use `series`).
-#' @param raw Logical. If FALSE (default), converts SPSS labelled vectors into R factors.
-#'   If TRUE, returns the raw haven-labelled format.
+#' @param series Character scalar identifying the accumulated series to download.
+#'   Ignored when `reo` is provided.
+#' @param reo Single REO identifier of a study to download. Can be character,
+#'   numeric, or factor-like, and is normalized internally.
+#' @param raw Logical. If FALSE (default), converts SPSS labelled vectors into
+#'   factors. If TRUE, returns raw haven-labelled vectors.
 #' @export
 #' @return A tibble with individuals' responses to the requested dataset.
 #' @examples
 #' \dontrun{
-#' # Default: accumulated microdata series (BOP_presencial)
+#' # Default: accumulated microdata series
 #' d <- CEOdata()
 #'
-#' # Load another accumulated series by codi_serie
+#' # Load another accumulated series by code
 #' d_tel <- CEOdata(series = "BOP_telefonica")
 #'
 #' # Load a single study by REO
 #' d1145 <- CEOdata(reo = "1145")
 #' }
 
+# ---- Internal helpers used by CEOdata() --------------------------------------
+
+ceodata_norm_scalar <- function(x, arg_name) {
+  if (length(x) != 1L) {
+    stop("`", arg_name, "` must be length 1.", call. = FALSE)
+  }
+  if (is.factor(x)) x <- as.character(x)
+  if (is.numeric(x)) {
+    if (is.na(x)) return(NA_character_)
+    # Avoid scientific notation for IDs.
+    x <- format(x, scientific = FALSE, trim = TRUE)
+  }
+  x <- as.character(x)
+  if (length(x) != 1L || is.na(x)) return(NA_character_)
+  trimws(x)
+}
+
+ceodata_is_na_scalar <- function(x) {
+  length(x) == 1L && is.na(x)
+}
+
+ceodata_url_kind <- function(url) {
+  if (!is.character(url) || length(url) != 1L || is.na(url)) return("none")
+  u <- tolower(trimws(url))
+  if (!nzchar(u)) return("none")
+  if (grepl("\\.sav($|\\?)", u)) return("sav")
+  if (grepl("\\.zip($|\\?)", u)) return("zip")
+  if (grepl("\\.csv($|\\?)", u)) return("csv")
+  "other"
+}
+
+ceodata_pick_best_url <- function(urls, context) {
+  if (is.null(urls) || length(urls) == 0L) {
+    stop("No microdata links found for ", context, ".", call. = FALSE)
+  }
+
+  urls <- trimws(as.character(urls))
+  urls <- urls[!is.na(urls) & nzchar(urls)]
+  urls <- unique(urls)
+
+  if (length(urls) == 0L) {
+    stop("No non-empty microdata links found for ", context, ".", call. = FALSE)
+  }
+
+  kinds <- vapply(urls, ceodata_url_kind, FUN.VALUE = character(1))
+
+  # Prefer direct .sav over .zip (which may contain one .sav), then fail.
+  sav_idx <- which(kinds == "sav")
+  if (length(sav_idx) > 0L) {
+    return(urls[[sav_idx[[1]]]])
+  }
+
+  zip_idx <- which(kinds == "zip")
+  if (length(zip_idx) > 0L) {
+    return(urls[[zip_idx[[1]]]])
+  }
+
+  if (any(kinds == "csv")) {
+    stop(
+      "Only CSV links were found for ", context, " (",
+      paste(urls[kinds == "csv"], collapse = ", "),
+      "). CEOdata only supports .sav links or .zip files containing one .sav.",
+      call. = FALSE
+    )
+  }
+
+  stop(
+    "No supported microdata link was found for ", context, ". ",
+    "Expected .sav or .zip. Found: ", paste(urls, collapse = ", "),
+    call. = FALSE
+  )
+}
+
+ceodata_norm_name <- function(x) {
+  tolower(gsub("[^a-z0-9]", "", iconv(x, to = "ASCII//TRANSLIT")))
+}
+
+ceodata_guess_col <- function(nms, canonical, aliases = character(0)) {
+  if (canonical %in% nms) return(canonical)
+
+  nms_norm <- ceodata_norm_name(nms)
+  target_norm <- unique(ceodata_norm_name(c(canonical, aliases)))
+  idx <- which(nms_norm %in% target_norm)
+  if (length(idx) < 1L) return(NULL)
+  nms[[idx[[1]]]]
+}
+
+ceodata_extract_urls <- function(d, cols) {
+  vals <- unlist(
+    lapply(cols, function(col) {
+      if (is.null(col) || !(col %in% names(d))) return(character(0))
+      as.character(d[[col]])
+    }),
+    use.names = FALSE
+  )
+  vals
+}
+
 CEOdata <- function(series = "BOP_presencial",
                     reo = NA,
                     raw = FALSE) {
 
-  # Validate `raw`
+  # ---- Validate shared inputs ----
   if (!is.logical(raw) || length(raw) != 1L || is.na(raw)) {
     stop("'raw' must be a single logical value.", call. = FALSE)
   }
 
-  # Validate mutual exclusivity:
-  if (!missing(reo) && !missing(series) && !is.na(reo) && !is.na(series)) {
+  # Keep historical behavior: user should choose one mode only.
+  reo_supplied <- !missing(reo) && !is.null(reo) && !ceodata_is_na_scalar(reo)
+  series_supplied <- !missing(series) && !is.null(series) && !ceodata_is_na_scalar(series)
+
+  if (isTRUE(reo_supplied) && isTRUE(series_supplied)) {
     stop("Provide either 'reo' or 'series', but not both.", call. = FALSE)
   }
 
-
-  # ---- Mode 1: Single study (REO) ----
-  if (!is.na(reo)) {
-
-    if (!is.character(reo) || length(reo) != 1L || !nzchar(reo)) {
-      stop("'reo' must be a character scalar (e.g. '1145').", call. = FALSE)
+  # ---- Mode 1: Single-study download by REO ----
+  if (isTRUE(reo_supplied)) {
+    reo_norm <- ceodata_norm_scalar(reo, "reo")
+    if (is.na(reo_norm) || !nzchar(reo_norm)) {
+      stop("'reo' must be a non-empty scalar (e.g. '1145').", call. = FALSE)
     }
 
     meta <- CEOmetadata()
-
-    idx <- !is.na(meta$REO) & meta$REO == reo
-
-    if (sum(idx) == 0) {
-      stop(paste0("There is no dataset available for REO ", reo, "."), call. = FALSE)
-    }
-    if (sum(idx) > 1) {
-      stop(paste0("Multiple entries found for REO ", reo, " in CEOmetadata()."), call. = FALSE)
+    if (is.null(meta) || !is.data.frame(meta) || nrow(meta) == 0L) {
+      stop("Could not load survey metadata from CEOmetadata().", call. = FALSE)
     }
 
-    url.reo <- meta$`Microdades 1`[idx]
+    ceo_assert_cols(meta, c("REO", "Microdades 1"), "CEOmetadata()")
 
-    if (is.na(url.reo) || !nzchar(url.reo)) {
-      stop(paste0("There is no dataset link available for REO ", reo, "."), call. = FALSE)
+    # Some API payloads may represent REO as numeric/factor or include whitespace.
+    reo_col <- trimws(as.character(meta$REO))
+    idx <- !is.na(reo_col) & reo_col == reo_norm
+
+    if (sum(idx) == 0L) {
+      stop("There is no dataset available for REO ", reo_norm, ".", call. = FALSE)
     }
 
-    url.reo.low <- tolower(url.reo)
-    if (!grepl("\\.sav($|\\?)", url.reo.low)) {
-      if (grepl("\\.csv($|\\?)", url.reo.low)) {
-        stop(
-          paste0(
-            "REO ", reo, " points to a CSV in 'Microdades 1' (", url.reo, "). ",
-            "CEOdata currently supports only SPSS .sav links for single-study REO downloads."
-          ),
-          call. = FALSE
-        )
-      }
-      stop(
-        paste0(
-          "REO ", reo, " has an unsupported format in 'Microdades 1' (", url.reo, "). ",
-          "Expected a .sav link."
-        ),
-        call. = FALSE
+    rows <- meta[idx, , drop = FALSE]
+    micro_col_2 <- if ("Microdades 2" %in% names(rows)) "Microdades 2" else NULL
+    url_candidates <- ceodata_extract_urls(rows, c("Microdades 1", micro_col_2))
+    url <- ceodata_pick_best_url(url_candidates, context = paste0("REO ", reo_norm))
+
+    if (nrow(rows) > 1L) {
+      message(
+        "Multiple metadata rows found for REO ", reo_norm,
+        ". Using first preferred supported link: ", url
       )
     }
 
     message("Downloading and reading REO dataset. This may take a while.")
-    d <- ceodata_download_and_read(url.reo, raw = raw)
-
-    return(d)
+    return(ceodata_download_and_read(url, raw = raw))
   }
 
-  # ---- Mode 2: Accumulated series ----
-  if (is.na(series)) {
+  # ---- Mode 2: Accumulated-series download by codi_serie ----
+  series_norm <- ceodata_norm_scalar(series, "series")
+  if (is.na(series_norm) || !nzchar(series_norm)) {
     stop("'series' must be provided when 'reo' is NA.", call. = FALSE)
   }
-  if (!is.character(series) || length(series) != 1L || !nzchar(series)) {
-    stop("'series' must be a character scalar (e.g. 'BOP_presencial').", call. = FALSE)
+
+  m <- CEOaccumulated_metadata()
+  if (is.null(m) || !is.data.frame(m) || nrow(m) == 0L) {
+    stop("Could not load accumulated-series metadata.", call. = FALSE)
   }
 
-  m <- CEOaccumulated_meta(series = series)
-
-  if (is.null(m) || nrow(m) == 0) {
-    stop(paste0("Unknown accumulated series: ", series, "."), call. = FALSE)
+  # Defensive column resolution for minor schema changes / misspellings.
+  series_col <- ceodata_guess_col(
+    names(m),
+    canonical = "codi_serie",
+    aliases = c("codi serie", "codiserie", "codi_seriee", "codi_series", "codi series")
+  )
+  if (is.null(series_col)) {
+    stop(
+      "Accumulated metadata does not include a recognizable 'codi_serie' column.",
+      call. = FALSE
+    )
   }
-  if (nrow(m) > 1) {
-    stop(paste0("Multiple entries found for accumulated series: ", series, "."), call. = FALSE)
+
+  micro1_col <- ceodata_guess_col(
+    names(m),
+    canonical = "microdades_1",
+    aliases = c("microdades 1", "microdades1", "microdada_1", "microdades_01")
+  )
+  micro2_col <- ceodata_guess_col(
+    names(m),
+    canonical = "microdades_2",
+    aliases = c("microdades 2", "microdades2", "microdada_2", "microdades_02")
+  )
+
+  if (is.null(micro1_col) && is.null(micro2_col)) {
+    stop(
+      "Accumulated metadata does not include recognizable microdata link columns.",
+      call. = FALSE
+    )
   }
 
-  url <- m$microdades_1[1]
-  if (is.na(url) || !nzchar(url)) {
-    stop(paste0("No 'microdades_1' link available for accumulated series: ", series, "."), call. = FALSE)
+  series_col_chr <- trimws(as.character(m[[series_col]]))
+  idx <- !is.na(series_col_chr) & series_col_chr == series_norm
+
+  if (sum(idx) == 0L) {
+    # Best-effort fallback to case-insensitive matching.
+    idx <- !is.na(series_col_chr) &
+      tolower(series_col_chr) == tolower(series_norm)
+  }
+
+  if (sum(idx) == 0L) {
+    stop("Unknown accumulated series: ", series_norm, ".", call. = FALSE)
+  }
+
+  rows <- m[idx, , drop = FALSE]
+  url_candidates <- ceodata_extract_urls(rows, c(micro1_col, micro2_col))
+  url <- ceodata_pick_best_url(
+    url_candidates,
+    context = paste0("accumulated series ", series_norm)
+  )
+
+  if (nrow(rows) > 1L) {
+    message(
+      "Multiple metadata rows found for accumulated series ", series_norm,
+      ". Using first preferred supported link: ", url
+    )
   }
 
   message("Downloading and reading accumulated series. This may take a while.")
-  d <- ceodata_download_and_read(url, raw = raw)
-
-  return(d)
+  ceodata_download_and_read(url, raw = raw)
 }
