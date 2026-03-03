@@ -72,6 +72,26 @@ CEOdata <- function(series = "BOP_presencial",
       stop(paste0("There is no dataset link available for REO ", reo, "."), call. = FALSE)
     }
 
+    url.reo.low <- tolower(url.reo)
+    if (!grepl("\\.sav($|\\?)", url.reo.low)) {
+      if (grepl("\\.csv($|\\?)", url.reo.low)) {
+        stop(
+          paste0(
+            "REO ", reo, " points to a CSV in 'Microdades 1' (", url.reo, "). ",
+            "CEOdata currently supports only SPSS .sav links for single-study REO downloads."
+          ),
+          call. = FALSE
+        )
+      }
+      stop(
+        paste0(
+          "REO ", reo, " has an unsupported format in 'Microdades 1' (", url.reo, "). ",
+          "Expected a .sav link."
+        ),
+        call. = FALSE
+      )
+    }
+
     message("Downloading and reading REO dataset. This may take a while.")
     d <- ceodata_download_and_read(url.reo, raw = raw)
 

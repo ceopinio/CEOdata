@@ -32,7 +32,7 @@ if (getRversion() >= "2.15.1")  utils::globalVariables(
   "Metodologia enquesta", "Metode de recollida de dades", 
   "Ambit territorial", "Dia inici treball de camp", 
   "Dia final treball de camp", "Any d'entrada al REO", 
-  "Mostra estudis quantitatius", "Cost", 
-  "Enllac matriu de dades"
+  "Mostra estudis quantitatius", "Cost",
+  "Microdades 1"
   )
 )
