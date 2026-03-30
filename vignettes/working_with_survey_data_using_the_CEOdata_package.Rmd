@@ -12,6 +12,29 @@ vignette: >
 ---
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 library(CEOdata)
+library(knitr)
+library(tibble)
+library(dplyr)
+library(haven)
+
+example_path <- function(filename) {
+  system.file("extdata", filename, package = "CEOdata", mustWork = TRUE)
+}
+
+d <- haven::read_sav(example_path("BOP_presencial_example.sav")) |>
+  tibble::as_tibble() |>
+  dplyr::mutate(
+    dplyr::across(
+      where(~ inherits(.x, "haven_labelled")),
+      haven::as_factor
+    )
+  )
+d_available <- all(c("SEXE", "BOP_NUM") %in% names(d))
+meta <- readRDS(example_path("REO_meta_example.rds"))
+meta_tags_available <- all(c("Descriptors", "REO") %in% names(meta))
+meta_fieldwork_available <- all(
+  c("Dia inici treball de camp", "Dia final treball de camp", "REO", "microdata_available") %in% names(meta)
+)
 ```
 
 When working with survey data there are several issues / strategies to clean and
@@ -19,28 +42,14 @@ prepare the data that are useful and worth being incorporated to the routines
 and workflow. This vignette uses the `CEOdata` package to present several
 examples.
 
-It uses primarily the data retrieved by default using the `CEOdata()` function
-in its default form, which retrieves the compiled "Barometers" from 2014 onwards.
+It uses primarily the bundled offline example version of the default
+`BOP_presencial` dataset.
 
 
 ```{r message = FALSE, echo = TRUE, eval = FALSE}
 library(CEOdata)
-d <- CEOdata()
+d <- haven::read_sav("../data/BOP_presencial_example.sav")
 ```
-
-```{r message = FALSE, echo = FALSE, eval = TRUE}
-library(knitr)
-library(CEOdata)
-d <- CEOdata()
-# If there is an internet problem, do not run the remaining of the chunks.
-if (is.null(d)) {
-  print("here")
-  knitr::opts_chunk$set(eval = FALSE)
-} else {
-  knitr::opts_chunk$set(eval = TRUE)
-}
-```
-
 
 # Incorporate Tables and Figures
 
@@ -55,7 +64,7 @@ library(ggplot2)
 ```
 
 
-```{r}
+```{r eval = d_available}
 d |>
   count(SEXE)
 ```
@@ -63,10 +72,10 @@ d |>
 
 Or to trace the proportion of females surveyed over time, across barometers:
 
-```{r prop-females, fig.width = 8, fig.height = 4, fig.cap = 'Proportion of females in the different Barometers.'}
+```{r prop-females, eval = d_available, fig.width = 8, fig.height = 4, fig.cap = 'Proportion of females in the different Barometers.'}
 d |>
   group_by(BOP_NUM) |>
-  summarize(propFemales = length(which(SEXE == "Dona")) / n()) |>
+  summarize(propFemales = length(which(SEXE == "Femení")) / n()) |>
   ggplot(aes(x = BOP_NUM, y = propFemales, group = 1)) +
   geom_point() +
   geom_line() +
@@ -80,8 +89,8 @@ d |>
 Alternatively, the metadata can also be explored using the different topics
 (tags, called "Descriptors") covered as reported by the CEO.
 
-```{r tags, fig.width = 6, fig.height = 6, fig.cap = 'Prevalence of topics covered.'}
-tags <- CEOmeta() |>
+```{r tags, eval = meta_tags_available, fig.width = 6, fig.height = 6, fig.cap = 'Prevalence of topics covered.'}
+tags <- meta |>
   separate_rows(Descriptors, sep = ";") |>
   mutate(tag = factor(stringr::str_trim(Descriptors))) |>
   select(REO, tag)
@@ -101,8 +110,8 @@ The metadata also provides the option of examining the time periods where there
 has been fieldwork in quantitative studies, since 2018. In addition, we can
 distinguish between studies that provide microdata and surveys that don't.
 
-```{r fieldwork, fig.width = 8, fig.height = 10, fig.cap = 'Fieldwork periods.'}
-CEOmeta() |>
+```{r fieldwork, eval = meta_fieldwork_available, fig.width = 8, fig.height = 10, fig.cap = 'Fieldwork periods.'}
+meta |>
   filter(`Dia inici treball de camp` > "2018-01-01") |>
   ggplot(aes(xmin = `Dia inici treball de camp`,
              xmax = `Dia final treball de camp`,
@@ -116,14 +125,14 @@ CEOmeta() |>
 
 # Arrange and store
 
-Once a dataset has been retrieved from the CEO servers, it is important to clean
+Once a dataset has been loaded, it is important to clean
 it and arrange it to one's individual preferences, and store the result in an R
 object.
 
 The following example, for instance, process several variables of the survey,
 picks them and stores the resulting object in a workspace (RData) format.
 
-```{r}
+```{r eval = d_available}
 survey.data <- d |>
   mutate(Female = ifelse(SEXE == "Dona", 1, 0),
          Age = EDAT,
@@ -131,7 +140,7 @@ survey.data <- d |>
          Income = ifelse(INGRESSOS_1_15 %in% c("No ho sap", "No contesta"), 
                          NA,
                          INGRESSOS_1_15),
-         Date = Data,
+         Date = DATA_FIN,
          # Reorganize factor labels
          `Place of birth` = factor(case_when(
             LLOC_NAIX == "Catalunya" ~ "Catalonia",
@@ -177,12 +186,8 @@ a dataset. For example, using the `vtable` package to produce a table with descr
 library(vtable)
 st(survey.data)
 ```
-```{r, eval = TRUE, echo = FALSE}
-if (exists("survey.data")) {
-  if (!is.null(survey.data)) {
-    vtable::st(survey.data, out = "kable")
-  }
-}
+```{r, eval = exists("survey.data"), echo = FALSE}
+vtable::st(survey.data, out = "kable")
 ```
 
 Or the `compareGroups` that allows to flexibly produce tables that compare
@@ -193,13 +198,9 @@ library(compareGroups)
 createTable(compareGroups(Female ~ . -Date, data = survey.data))
 ```
 
-```{r, eval = TRUE, echo = FALSE}
-if (exists("survey.data")) {
-  if (!is.null(survey.data)) {
-    library(compareGroups)
-    createTable(compareGroups(Female ~ . -Date, data = survey.data))
-  }
-}
+```{r, eval = exists("survey.data"), echo = FALSE}
+library(compareGroups)
+createTable(compareGroups(Female ~ . -Date, data = survey.data))
 ```
 
 

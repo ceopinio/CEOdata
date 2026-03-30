@@ -12,8 +12,7 @@ An object of class \code{environment} of length 0.
 the
 }
 \description{
-Used when loading the package, it gets the last update of the available
-meta data of CEO surveys, cleans it and makes it ready for the rest
-of the functions in the package.
+Used when loading the package. It gets the latest metadata of CEO surveys,
+cleans it and makes it ready for the rest of functions in the package.
 }
 \keyword{internal}

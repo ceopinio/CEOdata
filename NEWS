@@ -1,3 +1,16 @@
+Version 1.4.0
+------------------------------
+  - Support for direct import of .sav files from the open data platform.
+  - New function CEOaccumulated_meta() to retrieve metadata on accumulated
+  microdata series.
+  - Extended CEOdata() to retrieve either accumulated series or individual
+  studies.
+  - Refactored the internal data retrieval logic.
+  - Updated the using_CEOdata vignette to reflect the new API.
+  - Updated documentation to align with the new data access model.
+  - Ongoing refactoring of tests to improve robustness against updates in 
+  the source data.
+
 Version 1.3.1
 ------------------------------
 
